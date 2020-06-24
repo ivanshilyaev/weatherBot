@@ -16,14 +16,21 @@ import java.util.Scanner;
 
 public class WeatherBot extends TelegramLongPollingBot {
     private static final String API_KEY = "f02c5f07c8d826c5de303e4b6d365768";
-    private static String location = "Minsk";
-    private static String urlString = "http://api.openweathermap.org/data/2.5/weather?q=" +
-            location + "&appid=" + API_KEY;
+    private String location;
     private static final double KELVIN_TO_CELSIUS = 273.15;
 
     public static Map<String, Object> jsonToMap(String line) {
         return new Gson().fromJson(line, new TypeToken<HashMap<String, Object>>() {
         }.getType());
+    }
+
+    public static double round(double value, int places) {
+        if (places < 0) throw new IllegalArgumentException();
+
+        long factor = (long) Math.pow(10, places);
+        value = value * factor;
+        long tmp = Math.round(value);
+        return (double) tmp / factor;
     }
 
     @Override
@@ -33,7 +40,9 @@ public class WeatherBot extends TelegramLongPollingBot {
             SendMessage sendMessage = new SendMessage()
                     .setChatId(update.getMessage().getChatId())
                     .setText(update.getMessage().getText());
-            if (text.equals("weather in Minsk")) {
+            if (text.startsWith("weather in")) {
+                String[] textArray = text.split(" ");
+                location = textArray[2];
                 try {
                     sendMessage.setText(getWeather());
                 } catch (IOException e) {
@@ -51,6 +60,8 @@ public class WeatherBot extends TelegramLongPollingBot {
     }
 
     public String getWeather() throws IOException {
+        String urlString = "http://api.openweathermap.org/data/2.5/weather?q=" +
+                location + "&appid=" + API_KEY;
         URL url = new URL(urlString);
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setRequestMethod("GET");
@@ -69,7 +80,7 @@ public class WeatherBot extends TelegramLongPollingBot {
         Map<String, Object> responseMap = jsonToMap(result.toString());
         Map<String, Object> mainMap = jsonToMap(responseMap.get("main").toString());
         double tempInKelvin = Double.parseDouble(mainMap.get("temp").toString());
-        return (tempInKelvin - KELVIN_TO_CELSIUS) + " °C";
+        return round(tempInKelvin - KELVIN_TO_CELSIUS, 2) + " °C";
     }
 
     @Override
